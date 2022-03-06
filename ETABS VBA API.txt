@@ -1,0 +1,209 @@
+Public Sub ETABS_Open()
+    Dim XCoord() As Double, YCoord() As Double, ZCoord As Double
+    Dim TotalRows As Integer
+    Dim ret As Integer
+    Dim Text() As String
+    Dim NumberOfStories As Integer
+    Dim StoreyHeight As Double
+    Dim NoOfCol As Integer
+    Dim gridX As Integer
+    Dim gridY As Integer
+    Dim spacingX As Double
+    Dim spacingY As Double
+    Dim Coordinates As Range
+    Dim Start As Double
+    Dim FrameName() As String
+    Dim StoryNumber As Integer
+    Dim XFir() As Double, YFir() As Double, ZFir() As Double
+    Dim Obj() As String
+    Dim Elm() As String
+    Dim LoadCase() As String
+    Dim StepType() As String
+    Dim StepNum() As Double
+    Dim SelfWTMultiplier As Double
+    Dim Name As String
+    Dim column_size As Double, beam_width As Double, beam_depth As Double, fbeam_width As Double, fbeam_depth As Double
+    Dim PropName As String
+    Dim col_num As Integer
+    Dim i As Integer, j As Integer, k As Integer
+    Dim project_name As String
+    Dim x() As Double
+    Dim y() As Double
+    Dim z() As Double
+
+    
+    
+    
+'create ETABS object
+   Set EtabsObject = CreateObject("CSI.ETABS.API.ETABSObject")
+
+'start ETABS application
+  ret = EtabsObject.ApplicationStart()
+
+'create SapModel object
+   Set SapModel = EtabsObject.SapModel
+
+'initialize model
+   ret = SapModel.InitializeNewModel()
+   ret = SapModel.SetPresentUnits(6)
+
+   ret = SapModel.PropMaterial.AddMaterial(Name, 2, "India", "Indian", "M20")
+   ret = SapModel.PropMaterial.AddMaterial(Name, 6, "India", "Indian", "HYSD Grade 500")
+   
+   NumberOfStories = Range("C2:C2").Value
+   
+   If (Range("E1:E1").Value = "m") Then
+    StoreyHeight = Range("C12:C12").Value
+    NoOfCol = Range("C4:C4").Value
+    gridX = Range("C5:C5").Value
+    gridY = Range("C6:C6").Value
+    spacingX = Range("C13:C13").Value
+    spacingY = Range("C14:C14").Value
+
+   Else
+    StoreyHeight = Range("C3:C3").Value
+    NoOfCol = Range("C4:C4").Value
+    gridX = Range("C5:C5").Value
+    gridY = Range("C6:C6").Value
+    spacingX = Range("C7:C7").Value
+    spacingY = Range("C8:C8").Value
+   
+   End If
+
+   
+'create grid template model
+   ret = SapModel.File.NewGridOnly(NumberOfStories, StoreyHeight, StoreyHeight, gridX, gridY, spacingX, spacingY)
+
+
+   
+'define load pattern
+   ret = SapModel.LoadPatterns.Add("FF", 1, SeflWTMultiplier = 1)
+   ret = SapModel.LoadPatterns.Add("WL", 1, SeflWTMultiplier = 1)
+   ret = SapModel.LoadPatterns.Add("PWL", 1, SeflWTMultiplier = 1)
+   ret = SapModel.LoadPatterns.Add("W Tank", 1, SeflWTMultiplier = 1)
+   ret = SapModel.LoadPatterns.Add("LL<=3", 3, SeflWTMultiplier = 1)
+   ret = SapModel.LoadPatterns.Add("LL>3", 3, SeflWTMultiplier = 1)
+   ret = SapModel.LoadPatterns.Add("EQx", 5, SeflWTMultiplier = 1)
+   ret = SapModel.LoadPatterns.Add("EQy", 5, SeflWTMultiplier = 1)
+   
+   
+   
+ 'concrete properties [beam and column]
+ 
+   column_size = Range("F4:F4").Value
+   beam_width = Range("F5:F5").Value
+   beam_depth = Range("G5:G5").Value
+   fbeam_width = Range("F6:F6").Value
+   fbeam_depth = Range("G6:G6").Value
+   ret = SapModel.PropFrame.SetRectangle("COL", "M20", column_size, column_size, 0)
+   ret = SapModel.PropFrame.SetRebarColumn("COL", "HYSD500", "HYSD500", 1, 1, 0.04, 0, 3, 3, "#5", "#3", 0.15, 3, 3, False)
+
+   
+   
+   ret = SapModel.PropFrame.SetRectangle("MB", "M20", beam_depth, beam_width, 255)
+   ret = SapModel.PropFrame.SetRebarBeam("MB", "HYSD500", "HYSD500", 0.025, 0.025, 0, 0, 0, 0)
+   
+   ret = SapModel.PropFrame.SetRectangle("FB", "M20", fbeam_depth, fbeam_width)
+   ret = SapModel.PropFrame.SetRebarBeam("FB", "HYSD500", "HYSD500", 0.025, 0.025, 0, 0, 0, 0)
+   
+   
+   
+ 'staircase and slab properties
+   slab_thickness = Range("C9:C9").Value
+   waistslab_thickness = Range("C10:C10").Value
+   
+   ret = SapModel.PropArea.SetSlab("SLAB", 0, 1, "M20", slab_thickness)
+   ret = SapModel.PropArea.SetSlab("WS", 0, 1, "M20", waistslab_thickness)
+   
+   
+   
+ 'create diaphragm
+   For i = 1 To NumberOfStories
+    ret = SapModel.Diaphragm.SetDiaphragm("D" & i, SemiRigid:=False)
+   Next i
+    
+   
+   
+ 'create column in the model
+   col_num = Range("C4:C4").Value
+   
+   For i = 1 To NumberOfStories
+     For j = 1 To col_num
+         ret = SapModel.FrameObj.AddByCoord(Cells(j + 2, 9).Value, Cells(j + 2, 10).Value, (i - 1) * StoreyHeight * 0.3048, Cells(j + 2, 9).Value, Cells(j + 2, 10).Value, i * StoreyHeight * 0.3048, Name, "COL")
+     Next j
+     ret = SapModel.View.RefreshView(0, False)
+   Next i
+   
+   
+   
+  'create beam in the model
+   For i = 1 To NumberOfStories
+    For k = 1 To gridY
+      For j = 1 To (gridX - 1)
+          ret = SapModel.FrameObj.AddByCoord(Cells(j + 2 + (k - 1) * gridX, 9).Value, Cells(j + 2 + (k - 1) * gridX, 10).Value, i * StoreyHeight * 0.3048, Cells(j + 3 + (k - 1) * gridX, 9).Value, Cells(j + 3 + (k - 1) * gridX, 10).Value, i * StoreyHeight * 0.3048, Name, "MB")
+      Next j
+    Next k
+    ret = SapModel.View.RefreshView(0, False)
+   Next i
+   
+   For i = 1 To NumberOfStories
+    For k = 1 To (gridY - 1)
+      For j = 1 To gridX
+          ret = SapModel.FrameObj.AddByCoord(Cells(j + 2 + (k - 1) * gridX, 9).Value, Cells(j + 2 + (k - 1) * gridX, 10).Value, i * StoreyHeight * 0.3048, Cells(j + 2 + gridX + (k - 1) * gridX, 9).Value, Cells(j + 2 + gridX + (k - 1) * gridX, 10).Value, i * StoreyHeight * 0.3048, Name, "MB")
+      Next j
+    Next k
+    ret = SapModel.View.RefreshView(0, False)
+   Next i
+   
+   
+   
+ 'create slab in the model
+  For i = 1 To NumberOfStories
+    For k = 1 To (gridY - 1)
+        For j = 1 To (gridX - 1)
+            ReDim x(4)
+            ReDim y(4)
+            ReDim z(4)
+            x(0) = Cells(j + 2 + (k - 1) * gridX, 9).Value: y(0) = Cells(j + 2 + (k - 1) * gridX, 10).Value: z(0) = i * StoreyHeight * 0.3048
+            
+            x(1) = Cells(j + 3 + (k - 1) * gridX, 9).Value:  y(1) = Cells(j + 3 + (k - 1) * gridX, 10).Value: z(1) = i * StoreyHeight * 0.3048
+            
+            x(2) = Cells(j + 2 + gridX + 1 + (k - 1) * gridX, 9).Value: y(2) = Cells(j + 2 + gridX + 1 + (k - 1) * gridX, 10).Value: z(2) = i * StoreyHeight * 0.3048
+            
+            x(3) = Cells(j + 2 + gridX + (k - 1) * gridX, 9).Value: y(3) = Cells(j + 2 + gridX + (k - 1) * gridX, 10).Value: z(3) = i * StoreyHeight * 0.3048
+            ret = SapModel.AreaObj.AddByCoord(4, x, y, z, Name, "SLAB")
+         Next j
+     Next k
+     ret = SapModel.View.RefreshView(0, False)
+   Next i
+   
+   
+   
+ 'assign Floor Finish to all the slabs
+  'ret = SapModel.AreaObj.SetLoadUniform("SLAB", "FF", -1250, 5, True, "Global", 0)
+
+
+ 'set design preferences and add default design combo according to IS 456
+  ret = SapModel.DesignConcrete.SetCode("IS 456:2000")
+  ret = SapModel.RespCombo.AddDesignDefaultCombos(0, 1, 0, 0)
+
+
+ 'save file
+   project_name = Cells(11, 5).Value
+   ret = SapModel.File.Save("D:\" & project_name & ".edb")
+   
+'refresh view
+   ret = SapModel.View.RefreshView(0, False)
+
+'run analysis'
+    'ret = SapModel.Analyze.RunAnalysis
+
+'close ETABS
+    'EtabsObject.ApplicationExit (False)
+
+'clean up variables
+    Set SapModel = Nothing
+    Set EtabsObject = Nothing
+
+End Sub
+
