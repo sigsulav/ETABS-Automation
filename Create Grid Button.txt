@@ -1,0 +1,34 @@
+Sub create_grid()
+    Dim col_num As Integer, i As Integer, j As Integer
+    Dim spacingX As Double, spacingY As Double
+    Dim gridX As Integer, gridY As Integer
+    Dim sum As Double
+    
+    gridX = Cells(5, 3).Value
+    gridY = Cells(6, 3).Value
+    spacingX = Cells(7, 3).Value
+    spacingY = Cells(8, 3).Value
+    
+    For i = 1 To gridY
+        sum = 0
+        j = 1
+        While j <= gridX
+            Cells((i - 1) * gridX + j + 2, 9).Value = 0 + sum
+            sum = sum + Cells(j + 14, 5).Value
+            j = j + 1
+        Wend
+    Next i
+    
+    sum = 0
+    For i = 1 To gridY
+        j = 1
+        While j <= gridX
+            Cells((i - 1) * gridX + j + 2, 10).Value = 0 + sum
+            j = j + 1
+        Wend
+        sum = sum + Cells(i + 14, 6).Value
+    Next i
+    
+    
+End Sub
+
